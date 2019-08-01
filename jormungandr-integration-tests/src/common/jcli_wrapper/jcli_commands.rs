@@ -276,3 +276,15 @@ pub fn get_rest_message_log_command(host: &str) -> Command {
         .arg(&host);
     command
 }
+
+pub fn get_rest_shutdown_node_command(host: &str) -> Command {
+    let mut command = Command::new(configuration::get_jcli_app().as_os_str());
+    command
+        .arg("rest")
+        .arg("v0")
+        .arg("shutdown")
+        .arg("get")
+        .arg("--host")
+        .arg(&host);
+    command
+}
