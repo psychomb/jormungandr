@@ -118,7 +118,7 @@ const MAIN_BRANCH_TAG: &str = "HEAD";
 pub struct Blockchain {
     branches: Branches,
 
-    ref_cache: RefCache,
+    ref_cache: RefCache<Ref>,
 
     ledgers: Multiverse<Arc<Ledger>>,
 
