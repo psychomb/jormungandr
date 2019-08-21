@@ -1,4 +1,6 @@
-use super::{Blockchain, Branch, Error, ErrorKind, PreCheckedHeader, Ref};
+use super::{
+    Blockchain, Branch, Error, ErrorKind, HeaderChainTriage, PreCheckedHeader, Quarantine, Ref,
+};
 use crate::{
     blockcfg::{Block, Epoch, Header, HeaderHash},
     intercom::{self, BlockMsg, NetworkMsg, PropagateMsg},
@@ -97,7 +99,8 @@ pub fn handle_input(
             }
         }
         BlockMsg::ChainHeaders(headers, reply) => {
-            let future = process_chain_headers_into_block_request(blockchain.clone(), headers);
+            let future = /* TODO: process_chain_headers_into_block_request(quarantine, headers) */
+                future::ok(vec![]);
             match future.wait() {
                 Err(e) => {
                     reply.reply_error(chain_header_error_into_reply(e));
@@ -268,42 +271,21 @@ fn network_block_error_into_reply(err: Error) -> intercom::Error {
 }
 
 pub fn process_chain_headers_into_block_request(
-    mut blockchain: Blockchain,
+    mut quarantine: Quarantine,
     headers: Vec<Header>,
 ) -> impl Future<Item = Vec<HeaderHash>, Error = Error> {
     stream::iter_ok(headers)
         .and_then(move |header| {
-            let mut end_blockchain = blockchain.clone();
-            blockchain
-                .pre_check_header(header)
-                .and_then(move |pre_checked| match pre_checked {
-                    PreCheckedHeader::AlreadyPresent { .. } => {
+            quarantine
+                .apply_header(header)
+                .and_then(move |triage| match triage {
+                    HeaderChainTriage::AlreadyPresent => {
                         // The block is already present. This may happen
                         // if the peer has started from an earlier checkpoint
                         // than our tip, so ignore this and proceed.
-                        Either::A(future::ok(None))
+                        Ok(None)
                     }
-                    PreCheckedHeader::MissingParent { header, .. } => {
-                        // TODO: when the functionality below is implemented,
-                        // Blockchain::pre_check_header will only return this
-                        // variant on headers that do not belong to the chain.
-                        Either::A(future::err(
-                            ErrorKind::MissingParentBlockFromStorage(header).into(),
-                        ))
-                    }
-                    PreCheckedHeader::HeaderWithCache { header, parent_ref } => {
-                        let post_check = end_blockchain
-                            .post_check_header(header, parent_ref)
-                            .and_then(|post_checked| {
-                                // TODO: a blockchain method that will build
-                                // up the reference chain, or tell that
-                                // block data is needed for new epoch
-                                // leadership.
-                                unimplemented!();
-                                Ok(None)
-                            });
-                        Either::B(post_check)
-                    }
+                    HeaderChainTriage::Quarantined(hash) => Ok(Some(hash)),
                 })
         })
         .filter_map(identity)
