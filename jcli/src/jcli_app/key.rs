@@ -30,13 +30,13 @@ custom_error! { pub Error
 #[derive(StructOpt, Debug)]
 #[structopt(name = "genesis", rename_all = "kebab-case")]
 pub enum Key {
-    /// generate a private key
+    /// Generate a private key
     Generate(Generate),
-    /// get the public key out of a given private key
+    /// Get the public key out of a given private key
     ToPublic(ToPublic),
-    /// retrive a private key from the given bytes
+    /// Retrieve a private key from the given bytes
     FromBytes(FromBytes),
-    /// get the bytes out of a private key
+    /// Get the bytes out of a private key
     ToBytes(ToBytes),
 }
 
